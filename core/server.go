@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"gredissimulate/core/processor"
 	"gredissimulate/logger"
 	"net"
 	"strconv"
@@ -61,7 +62,7 @@ func (server *Server) Close() error {
 
 func (server *Server) handle(conn net.Conn) {
 	ctx, _ := context.WithCancel(server.ctx)
-	worker, err := NewWorker(ctx, conn)
+	worker, err := NewWorker(ctx, conn, processor.NewSimpleProc)
 	if nil != err {
 		logger.LogError("Create new worker fail: " + err.Error())
 		return

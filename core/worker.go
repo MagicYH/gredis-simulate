@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"fmt"
 	"gredissimulate/core/processor"
 	"gredissimulate/core/proto"
 	"gredissimulate/logger"
@@ -14,17 +13,19 @@ import (
 
 // Worker : worker for client
 type Worker struct {
-	ctx    context.Context
-	conn   net.Conn
-	reader *bufio.Reader
+	ctx         context.Context
+	conn        net.Conn
+	reader      *bufio.Reader
+	newProcFunc func() processor.Processor
 }
 
 // NewWorker : Create new worker instance
-func NewWorker(ctx context.Context, conn net.Conn) (*Worker, error) {
+func NewWorker(ctx context.Context, conn net.Conn, function func() processor.Processor) (*Worker, error) {
 	worker := &Worker{
-		ctx:    ctx,
-		conn:   conn,
-		reader: bufio.NewReader(conn),
+		ctx:         ctx,
+		conn:        conn,
+		reader:      bufio.NewReader(conn),
+		newProcFunc: function,
 	}
 	return worker, nil
 }
@@ -50,24 +51,48 @@ func (worker *Worker) DoServe() {
 	defer worker.conn.Close()
 
 	for {
-		request, err := worker.parseCmd()
+		// proc := &processor.SimpleProc{}
+		proc := worker.newProcFunc()
+		err := worker.ProcessMultiCmd(proc)
 		if nil != err {
-			logger.LogError("Parse cmd fail", err)
-			if "NetError" == reflect.TypeOf(err).String() {
-				break
-			}
-		} else {
-			proc := &processor.EmptyProc{}
-			response, err := processor.ProcessReq(proc, request)
-			if nil != err {
-				logger.LogError(err)
-			}
-			worker.conn.Write(proto.BuildResBinary(response))
+			break
 		}
 	}
 }
 
-func (worker *Worker) readLine() (string, error) {
+// ProcessMultiCmd : Process multi commands
+func (worker *Worker) ProcessMultiCmd(proc processor.Processor) error {
+	for {
+		parser := proto.NewParser()
+		request, err := parser.ParseCmd(worker)
+
+		var responseGroup *proto.ResponseGroup
+		if nil != err {
+			logger.LogError("Parse cmd fail", err)
+			if "proto.NetError" == reflect.TypeOf(err).String() {
+				return err
+			}
+			responseGroup.AppendResponse(proto.NewErrorRes("Parse cmd fail"))
+		} else {
+			// Use processor
+			responseGroup, err = processor.ProcessReq(proc, request)
+			if nil != err {
+				logger.LogError(err)
+			}
+		}
+
+		worker.conn.Write(proto.BuildMultiResBinary(responseGroup))
+
+		if !proc.IsMulti() {
+			break
+		}
+	}
+
+	return nil
+}
+
+// ReadLine : Readline of stream from socket
+func (worker *Worker) ReadLine() (string, error) {
 	var buf bytes.Buffer
 	for {
 		content, prefix, err := worker.reader.ReadLine()
@@ -80,32 +105,4 @@ func (worker *Worker) readLine() (string, error) {
 		}
 	}
 	return buf.String(), nil
-}
-
-func (worker *Worker) parseCmd() (*proto.Request, error) {
-	parser := proto.NewParser()
-	for {
-		content, err := worker.readLine()
-		if nil != err {
-			logger.LogError("Worker read line error: ", err)
-			return nil, err
-		}
-
-		fmt.Println("Get content", content)
-		isOk, err := parser.DoParse(content)
-		if nil != err {
-			logger.LogInfo("Parse cmd error")
-			return nil, err
-		}
-		if isOk {
-			break
-		}
-	}
-
-	return parser.GetRequest(), nil
-}
-
-func (worker *Worker) procRequest(request *proto.Request) (*proto.Response, error) {
-	response := &proto.Response{}
-	return response, nil
 }
