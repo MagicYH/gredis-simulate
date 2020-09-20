@@ -7,6 +7,7 @@ import (
 
 	"gredissimulate/config"
 	"gredissimulate/core"
+	"gredissimulate/core/processor"
 	"gredissimulate/logger"
 )
 
@@ -16,19 +17,22 @@ func main() {
 	logConf := logger.LogConf{LogPath: "", CacheSize: 100}
 	log, _ := logger.NewServer(logConf)
 
-	server, err := core.NewServer(core.ServerConf{Port: config.GetListenPort()})
+	// Create a new server with Simple command processor
+	server, err := core.NewServer(core.ServerConf{Port: config.GetListenPort()}, processor.NewSimpleProc)
 	if nil != err {
 		panic(err)
 	}
 
 	var wg sync.WaitGroup
 
+	// Start logger service
 	go func() {
 		wg.Add(1)
 		log.Start(ctx)
 		wg.Done()
 	}()
 
+	// Start redis service
 	go func() {
 		wg.Add(1)
 		server.Start(ctx)

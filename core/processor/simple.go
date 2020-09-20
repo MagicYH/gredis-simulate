@@ -22,10 +22,14 @@ func NewSimpleProc() Processor {
 
 // Get : Empty processor get
 func (proc *SimpleProc) Get(req *proto.Request) (res *proto.Response, err error) {
-	k := req.Params[0]
-	res = proto.NewResponse(proto.RES_TYPE_BULK)
-	if v, ok := set[k]; ok {
-		res.SetString(v)
+	if 1 == len(req.Params) {
+		k := req.Params[0]
+		res = proto.NewResponse(proto.RES_TYPE_BULK)
+		if v, ok := set[k]; ok {
+			res.SetString(v)
+		}
+	} else {
+		res = proto.NewErrorRes("wrong number of arguments for 'set' command")
 	}
 	return
 }
@@ -89,12 +93,16 @@ func (proc *SimpleProc) Hgetall(req *proto.Request) (res *proto.Response, err er
 	k := req.Params[0]
 	var data map[string]string
 	var ok bool
-	res = proto.NewResponse(proto.RES_TYPE_MULTI)
-	if data, ok = hash[k]; ok {
-		for field, value := range data {
-			res.SetString(field)
-			res.SetString(value)
+	if 1 == len(req.Params) {
+		res = proto.NewResponse(proto.RES_TYPE_MULTI)
+		if data, ok = hash[k]; ok {
+			for field, value := range data {
+				res.SetString(field)
+				res.SetString(value)
+			}
 		}
+	} else {
+		res = proto.NewErrorRes("wrong number of arguments for 'set' command")
 	}
 	return
 }
