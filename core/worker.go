@@ -9,6 +9,7 @@ import (
 	"gredissimulate/logger"
 	"net"
 	"reflect"
+	"strings"
 )
 
 // Worker : worker for client
@@ -16,16 +17,25 @@ type Worker struct {
 	ctx         context.Context
 	conn        net.Conn
 	reader      *bufio.Reader
-	newProcFunc func() processor.Processor
+	newProcFunc processor.Create
+	needAuth    bool
+	passwd      string
 }
 
 // NewWorker : Create new worker instance
-func NewWorker(ctx context.Context, conn net.Conn, function func() processor.Processor) (*Worker, error) {
+func NewWorker(ctx context.Context, conn net.Conn, conf ServerConf, function processor.Create) (*Worker, error) {
+	passwd := conf.Passwd
+	needAuth := false
+	if "" != conf.Passwd {
+		needAuth = true
+	}
 	worker := &Worker{
 		ctx:         ctx,
 		conn:        conn,
 		reader:      bufio.NewReader(conn),
 		newProcFunc: function,
+		needAuth:    needAuth,
+		passwd:      passwd,
 	}
 	return worker, nil
 }
@@ -52,7 +62,7 @@ func (worker *Worker) DoServe() {
 
 	for {
 		// proc := &processor.SimpleProc{}
-		proc := worker.newProcFunc()
+		proc := worker.newProcFunc(worker.passwd)
 		err := worker.ProcessMultiCmd(proc)
 		if nil != err {
 			break
@@ -66,7 +76,7 @@ func (worker *Worker) ProcessMultiCmd(proc processor.Processor) error {
 		parser := proto.NewParser()
 		request, err := parser.ParseCmd(worker)
 
-		var responseGroup *proto.ResponseGroup
+		responseGroup := proto.NewResponseGroup()
 		if nil != err {
 			logger.LogError("Parse cmd fail", err)
 			if "proto.NetError" == reflect.TypeOf(err).String() {
@@ -74,10 +84,26 @@ func (worker *Worker) ProcessMultiCmd(proc processor.Processor) error {
 			}
 			responseGroup.AppendResponse(proto.NewErrorRes("Parse cmd fail"))
 		} else {
-			// Use processor
-			responseGroup, err = processor.ProcessReq(proc, request)
-			if nil != err {
-				logger.LogError(err)
+			if worker.NeedAuth() {
+				if "Auth" == strings.Title(request.Cmd) {
+					response, err := proc.Auth(request)
+					responseGroup.AppendResponse(response)
+
+					if nil == err {
+						worker.needAuth = false
+					} else {
+						worker.needAuth = true
+					}
+				} else {
+					responseGroup = &proto.ResponseGroup{}
+					responseGroup.AppendResponse(proto.NewErrorRes("NOAUTH Authentication required."))
+				}
+			} else {
+				// Use processor
+				responseGroup, err = processor.ProcessReq(proc, request)
+				if nil != err {
+					logger.LogError(err)
+				}
 			}
 		}
 
@@ -105,4 +131,9 @@ func (worker *Worker) ReadLine() (string, error) {
 		}
 	}
 	return buf.String(), nil
+}
+
+// NeedAuth : is worker need auth
+func (worker *Worker) NeedAuth() bool {
+	return worker.needAuth && "" != worker.passwd
 }

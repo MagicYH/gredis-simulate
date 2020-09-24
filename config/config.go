@@ -15,6 +15,7 @@ import (
 type BaseConf struct {
 	Port    int    `yaml:"port"`     // Main listen port
 	LogPath string `yaml:"log_path"` // log file path
+	Passwd  string `yaml:"requirepass"`
 }
 
 var baseConf *BaseConf
@@ -52,4 +53,9 @@ func GetListenPort() int {
 // GetAppPath : Get the path of application
 func GetAppPath() string {
 	return appPath
+}
+
+// GetPasswd : Get password of server
+func GetPasswd() string {
+	return baseConf.Passwd
 }

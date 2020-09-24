@@ -11,7 +11,8 @@ import (
 
 // ServerConf : Configure of server
 type ServerConf struct {
-	Port int
+	Port   int
+	Passwd string
 }
 
 // Server : server
@@ -19,14 +20,14 @@ type Server struct {
 	ctx         context.Context
 	conf        ServerConf
 	listener    net.Listener
-	newProcFunc func() processor.Processor
+	newProcFunc processor.Create
 }
 
 // NewServer : Create new server
 //
 // @param conf ServerConf : Server config, etc: Listen port
 // @param function func() processor.Processor : Function that create a new processor instance
-func NewServer(conf ServerConf, function func() processor.Processor) (*Server, error) {
+func NewServer(conf ServerConf, function processor.Create) (*Server, error) {
 
 	listener, err := net.Listen("tcp", ":"+strconv.Itoa(conf.Port))
 	if nil != err {
@@ -67,7 +68,7 @@ func (server *Server) Close() error {
 
 func (server *Server) handle(conn net.Conn) {
 	ctx, _ := context.WithCancel(server.ctx)
-	worker, err := NewWorker(ctx, conn, server.newProcFunc)
+	worker, err := NewWorker(ctx, conn, server.conf, server.newProcFunc)
 	if nil != err {
 		logger.LogError("Create new worker fail: " + err.Error())
 		return

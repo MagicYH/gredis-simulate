@@ -1,2 +1,3 @@
 port: 9736
 log_path: 
+requirepass: 

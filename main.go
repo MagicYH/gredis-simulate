@@ -18,7 +18,7 @@ func main() {
 	log, _ := logger.NewServer(logConf)
 
 	// Create a new server with Simple command processor
-	server, err := core.NewServer(core.ServerConf{Port: config.GetListenPort()}, processor.NewSimpleProc)
+	server, err := core.NewServer(core.ServerConf{Port: config.GetListenPort(), Passwd: config.GetPasswd()}, processor.NewSimpleProc)
 	if nil != err {
 		panic(err)
 	}

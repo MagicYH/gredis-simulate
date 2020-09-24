@@ -1,15 +1,17 @@
 package processor
 
 import (
+	"errors"
 	"gredissimulate/core/proto"
 	"reflect"
 	"strings"
 )
 
+// Create : construct function define
+type Create func(string) Processor
+
 // Processor : Processor interface
 type Processor interface {
-	Get(*proto.Request) (*proto.Response, error)
-	Set(*proto.Request) (*proto.Response, error)
 	Ping(*proto.Request) (*proto.Response, error)
 	Auth(*proto.Request) (*proto.Response, error)
 	Multi(*proto.Request) (*proto.Response, error)
@@ -71,6 +73,7 @@ func ProcessReq(proc Processor, req *proto.Request) (group *proto.ResponseGroup,
 // BaseProc : Do nothing
 type BaseProc struct {
 	isMulti bool
+	passwd  string
 	reqQue  []*proto.Request
 }
 
@@ -113,7 +116,17 @@ func (proc *BaseProc) Ping(req *proto.Request) (res *proto.Response, err error) 
 
 // Auth : Empty processor auth
 func (proc *BaseProc) Auth(req *proto.Request) (res *proto.Response, err error) {
-	res = proto.NewErrorRes("ERR Client sent AUTH, but no password is set")
+	if "" == proc.passwd {
+		res = proto.NewErrorRes("ERR Client sent AUTH, but no password is set")
+	} else {
+		if proc.passwd == req.Params[0] {
+			res = proto.NewResponse(proto.RES_TYPE_STATE)
+			res.SetState("OK")
+		} else {
+			res = proto.NewErrorRes("ERR invalid password")
+			err = errors.New("ERR invalid password")
+		}
+	}
 	return
 }
 

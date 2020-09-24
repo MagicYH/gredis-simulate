@@ -16,8 +16,8 @@ type SimpleProc struct {
 }
 
 // NewSimpleProc : Create new simple processor
-func NewSimpleProc() Processor {
-	return &SimpleProc{}
+func NewSimpleProc(passwd string) Processor {
+	return &SimpleProc{BaseProc{passwd: passwd}}
 }
 
 // Get : Empty processor get
