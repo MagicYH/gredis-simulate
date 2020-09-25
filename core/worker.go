@@ -2,8 +2,8 @@ package core
 
 import (
 	"bufio"
-	"bytes"
 	"context"
+	"errors"
 	"gredissimulate/core/processor"
 	"gredissimulate/core/proto"
 	"gredissimulate/logger"
@@ -16,10 +16,10 @@ import (
 type Worker struct {
 	ctx         context.Context
 	conn        net.Conn
-	reader      *bufio.Reader
 	newProcFunc processor.Create
 	needAuth    bool
 	passwd      string
+	scanner     *bufio.Scanner
 }
 
 // NewWorker : Create new worker instance
@@ -32,10 +32,10 @@ func NewWorker(ctx context.Context, conn net.Conn, conf ServerConf, function pro
 	worker := &Worker{
 		ctx:         ctx,
 		conn:        conn,
-		reader:      bufio.NewReader(conn),
 		newProcFunc: function,
 		needAuth:    needAuth,
 		passwd:      passwd,
+		scanner:     bufio.NewScanner(conn),
 	}
 	return worker, nil
 }
@@ -61,7 +61,6 @@ func (worker *Worker) DoServe() {
 	defer worker.conn.Close()
 
 	for {
-		// proc := &processor.SimpleProc{}
 		proc := worker.newProcFunc(worker.passwd)
 		err := worker.ProcessMultiCmd(proc)
 		if nil != err {
@@ -118,19 +117,16 @@ func (worker *Worker) ProcessMultiCmd(proc processor.Processor) error {
 }
 
 // ReadLine : Readline of stream from socket
-func (worker *Worker) ReadLine() (string, error) {
-	var buf bytes.Buffer
-	for {
-		content, prefix, err := worker.reader.ReadLine()
-		if nil != err {
-			return "", NewNetError(err.Error())
-		}
-		buf.Write(content)
-		if !prefix {
-			break
+func (worker *Worker) ReadLine() (content string, err error) {
+	if worker.scanner.Scan() {
+		content = worker.scanner.Text()
+	} else {
+		err = worker.scanner.Err()
+		if nil == err {
+			err = errors.New("EOF")
 		}
 	}
-	return buf.String(), nil
+	return
 }
 
 // NeedAuth : is worker need auth
