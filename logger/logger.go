@@ -138,7 +138,7 @@ func (logger *Log) doLog(msg logMsg) {
 	case "info":
 		logger.logger.Println(msg.content...)
 	case "error":
-		logger.logger.Fatalln(msg.content...)
+		logger.logger.Println(msg.content...)
 	default:
 
 	}

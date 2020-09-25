@@ -20,8 +20,8 @@ func NewSimpleProc(passwd string) Processor {
 	return &SimpleProc{BaseProc{passwd: passwd}}
 }
 
-// Get : Empty processor get
-func (proc *SimpleProc) Get(req *proto.Request) (res *proto.Response, err error) {
+// GET : Empty processor get
+func (proc *SimpleProc) GET(req *proto.Request) (res *proto.Response, err error) {
 	if 1 == len(req.Params) {
 		k := req.Params[0]
 		res = proto.NewResponse(proto.RES_TYPE_BULK)
@@ -34,8 +34,8 @@ func (proc *SimpleProc) Get(req *proto.Request) (res *proto.Response, err error)
 	return
 }
 
-// Set : Empty processor set
-func (proc *SimpleProc) Set(req *proto.Request) (res *proto.Response, err error) {
+// SET : Empty processor set
+func (proc *SimpleProc) SET(req *proto.Request) (res *proto.Response, err error) {
 	if len(req.Params) == 2 {
 		k := req.Params[0]
 		v := req.Params[1]
@@ -48,8 +48,8 @@ func (proc *SimpleProc) Set(req *proto.Request) (res *proto.Response, err error)
 	return
 }
 
-// Hset : Empty processor hset
-func (proc *SimpleProc) Hset(req *proto.Request) (res *proto.Response, err error) {
+// HSET : Empty processor hset
+func (proc *SimpleProc) HSET(req *proto.Request) (res *proto.Response, err error) {
 	k := req.Params[0]
 	var data map[string]string
 	var ok bool
@@ -70,8 +70,8 @@ func (proc *SimpleProc) Hset(req *proto.Request) (res *proto.Response, err error
 	return
 }
 
-// Hget : Empty processor hget
-func (proc *SimpleProc) Hget(req *proto.Request) (res *proto.Response, err error) {
+// HGET : Empty processor hget
+func (proc *SimpleProc) HGET(req *proto.Request) (res *proto.Response, err error) {
 	k := req.Params[0]
 	var data map[string]string
 	var ok bool
@@ -88,8 +88,8 @@ func (proc *SimpleProc) Hget(req *proto.Request) (res *proto.Response, err error
 	return
 }
 
-// Hgetall : Empty processor hgetall
-func (proc *SimpleProc) Hgetall(req *proto.Request) (res *proto.Response, err error) {
+// HGETALL : Empty processor hgetall
+func (proc *SimpleProc) HGETALL(req *proto.Request) (res *proto.Response, err error) {
 	k := req.Params[0]
 	var data map[string]string
 	var ok bool
@@ -107,12 +107,12 @@ func (proc *SimpleProc) Hgetall(req *proto.Request) (res *proto.Response, err er
 	return
 }
 
-// Exec : Empty processor auth
-func (proc *SimpleProc) Exec(req *proto.Request) (res []*proto.Response, err error) {
+// EXEC : Empty processor auth
+func (proc *SimpleProc) EXEC(req *proto.Request) (res []*proto.Response, err error) {
 	if proc.isMulti {
 		proc.isMulti = false
 		for _, request := range proc.reqQue {
-			cmd := strings.Title(request.Cmd)
+			cmd := strings.ToUpper(request.Cmd)
 
 			v := reflect.ValueOf(proc)
 			method := v.MethodByName(cmd)

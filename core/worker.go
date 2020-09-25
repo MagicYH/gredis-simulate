@@ -9,7 +9,6 @@ import (
 	"gredissimulate/logger"
 	"net"
 	"reflect"
-	"strings"
 )
 
 // Worker : worker for client
@@ -58,7 +57,10 @@ func (e *NetError) Error() string {
 
 // DoServe : Do the worker's work
 func (worker *Worker) DoServe() {
-	defer worker.conn.Close()
+	defer func() {
+		logger.LogInfo("Remote client disconnect: ", worker.conn.RemoteAddr())
+		worker.conn.Close()
+	}()
 
 	for {
 		proc := worker.newProcFunc(worker.passwd)
@@ -73,19 +75,18 @@ func (worker *Worker) DoServe() {
 func (worker *Worker) ProcessMultiCmd(proc processor.Processor) error {
 	for {
 		parser := proto.NewParser()
+		responseGroup := proto.NewResponseGroup()
 		request, err := parser.ParseCmd(worker)
 
-		responseGroup := proto.NewResponseGroup()
 		if nil != err {
-			logger.LogError("Parse cmd fail", err)
 			if "proto.NetError" == reflect.TypeOf(err).String() {
 				return err
 			}
 			responseGroup.AppendResponse(proto.NewErrorRes("Parse cmd fail"))
 		} else {
 			if worker.NeedAuth() {
-				if "Auth" == strings.Title(request.Cmd) {
-					response, err := proc.Auth(request)
+				if "AUTH" == request.Cmd {
+					response, err := proc.AUTH(request)
 					responseGroup.AppendResponse(response)
 
 					if nil == err {

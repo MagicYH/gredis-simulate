@@ -124,13 +124,13 @@ type ParseError struct {
 }
 
 // NewParseError : Create new ParseError
-func NewParseError(s string) *ParseError {
-	return &ParseError{
+func NewParseError(s string) ParseError {
+	return ParseError{
 		s: s,
 	}
 }
 
-func (e *ParseError) Error() string {
+func (e ParseError) Error() string {
 	return e.s
 }
 
@@ -140,11 +140,11 @@ type NetError struct {
 }
 
 // NewNetError : Create new net error
-func NewNetError(s string) *NetError {
-	return &NetError{s: s}
+func NewNetError(s string) NetError {
+	return NetError{s: s}
 }
 
-func (e *NetError) Error() string {
+func (e NetError) Error() string {
 	return e.s
 }
 
@@ -153,13 +153,12 @@ func (parser *Parser) ParseCmd(reader SocketReader) (*Request, error) {
 	for {
 		content, err := reader.ReadLine()
 		if nil != err {
-			logger.LogError("Worker read line error: ", err)
 			return nil, NewNetError(err.Error())
 		}
 
 		isOk, err := parser.DoParse(content)
 		if nil != err {
-			logger.LogInfo("Parse cmd error")
+			logger.LogError("Parse cmd error")
 			return nil, err
 		}
 		if isOk {
@@ -204,7 +203,7 @@ func (parser *Parser) DoParse(content string) (bool, error) {
 			// If command is empty, then first parse command
 			parser.params = append(parser.params, content)
 		} else {
-			parser.cmd = content
+			parser.cmd = strings.ToUpper(content)
 		}
 		if parser.pCountCurrent == parser.pCountTotal {
 			return true, nil
