@@ -292,7 +292,7 @@ func (parser *Parser) parseStrCmd(content string) error {
 		return NewParseError("Parse cmd with text model fail")
 	}
 
-	parser.cmd = cmds[0]
+	parser.cmd = strings.ToUpper(cmds[0])
 	for i := 1; i < len(cmds); i++ {
 		parser.params = append(parser.params, cmds[i])
 	}
