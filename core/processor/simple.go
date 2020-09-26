@@ -2,9 +2,7 @@ package processor
 
 import (
 	"gredissimulate/core/proto"
-	"reflect"
 	"strconv"
-	"strings"
 )
 
 var set map[string]string
@@ -103,28 +101,6 @@ func (proc *SimpleProc) HGETALL(req *proto.Request) (res *proto.Response, err er
 		}
 	} else {
 		res = proto.NewErrorRes("wrong number of arguments for 'set' command")
-	}
-	return
-}
-
-// EXEC : Empty processor auth
-func (proc *SimpleProc) EXEC(req *proto.Request) (res []*proto.Response, err error) {
-	if proc.isMulti {
-		proc.isMulti = false
-		for _, request := range proc.reqQue {
-			cmd := strings.ToUpper(request.Cmd)
-
-			v := reflect.ValueOf(proc)
-			method := v.MethodByName(cmd)
-			result := method.Call([]reflect.Value{reflect.ValueOf(request)})
-			if !result[0].IsNil() {
-				res = append(res, result[0].Interface().(*proto.Response))
-			} else {
-				res = append(res, proto.NewErrorRes("Process `"+cmd+"` error"))
-			}
-		}
-	} else {
-		res = append(res, proto.NewErrorRes("EXEC without MULTI"))
 	}
 	return
 }
