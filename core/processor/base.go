@@ -14,7 +14,7 @@ type Processor interface {
 	PING(*proto.Request) (*proto.Response, error)
 	AUTH(*proto.Request) (*proto.Response, error)
 	MULTI(*proto.Request) (*proto.Response, error)
-	EXEC(*proto.Request) ([]*proto.Response, error)
+	EXEC(*proto.Request) (*proto.Response, error)
 	IsMulti() bool
 	SetMulti(bool)
 	GetReqQue() []*proto.Request
@@ -22,10 +22,9 @@ type Processor interface {
 }
 
 // ProcessReq : Process request
-func ProcessReq(proc Processor, req *proto.Request) (group *proto.ResponseGroup, err error) {
+func ProcessReq(proc Processor, req *proto.Request) (res *proto.Response, err error) {
 	cmd := req.Cmd
 
-	group = proto.NewResponseGroup()
 	v := reflect.ValueOf(proc)
 	method := v.MethodByName(cmd)
 	if method.IsValid() {
@@ -33,47 +32,41 @@ func ProcessReq(proc Processor, req *proto.Request) (group *proto.ResponseGroup,
 			if "EXEC" != cmd {
 				result := method.Call([]reflect.Value{reflect.ValueOf(req)})
 				if !result[0].IsNil() {
-					group.AppendResponse(result[0].Interface().(*proto.Response))
+					res = result[0].Interface().(*proto.Response)
 				} else {
-					group.AppendResponse(proto.NewErrorRes("Process `" + cmd + "` error"))
+					res = proto.NewErrorRes("Process `" + cmd + "` error")
 				}
 
 				if !result[1].IsNil() {
 					err = result[1].Interface().(error)
 				}
 			} else {
-				responses, _ := proc.EXEC(req)
-				group.AppendResponse(responses[0])
+				res, _ = proc.EXEC(req)
 			}
 		} else {
 			if "EXEC" != cmd {
 				if "MULTI" != cmd {
 					proc.AppendReq(req)
-					oneResponse := proto.NewResponse(proto.RES_TYPE_STATE)
-					oneResponse.SetState("QUEUE")
-					group.AppendResponse(oneResponse)
+					res = proto.NewResponse(proto.RES_TYPE_STATE)
+					res.SetString("QUEUE")
 				} else {
-					response, _ := proc.MULTI(req)
-					group.AppendResponse(response)
+					res, _ = proc.MULTI(req)
 				}
 			} else {
-				group.SetType(proto.RESPONSE_GROUP_MULTI)
-				responses, _ := execMulti(proc)
-				for _, response := range responses {
-					group.AppendResponse(response)
-				}
+				res, _ = execMulti(proc)
 			}
 		}
 	} else {
-		group.AppendResponse(proto.NewErrorRes("Unknow command"))
+		res = proto.NewErrorRes("Unknow command")
 	}
 
 	return
 }
 
-func execMulti(proc Processor) (res []*proto.Response, err error) {
+func execMulti(proc Processor) (res *proto.Response, err error) {
 	if proc.IsMulti() {
 		proc.SetMulti(false)
+		res = proto.NewResponse(proto.RES_TYPE_MULTI)
 		for _, request := range proc.GetReqQue() {
 			cmd := request.Cmd
 
@@ -81,13 +74,13 @@ func execMulti(proc Processor) (res []*proto.Response, err error) {
 			method := v.MethodByName(cmd)
 			result := method.Call([]reflect.Value{reflect.ValueOf(request)})
 			if !result[0].IsNil() {
-				res = append(res, result[0].Interface().(*proto.Response))
+				res.SetResponse(result[0].Interface().(*proto.Response))
 			} else {
-				res = append(res, proto.NewErrorRes("Process `"+cmd+"` error"))
+				res.SetResponse(proto.NewErrorRes("Process `" + cmd + "` error"))
 			}
 		}
 	} else {
-		res = append(res, proto.NewErrorRes("EXEC without MULTI"))
+		res = proto.NewErrorRes("EXEC without MULTI")
 	}
 	return
 }
@@ -135,14 +128,14 @@ func (proc *BaseProc) GET(req *proto.Request) (res *proto.Response, err error) {
 // SET : Empty processor set
 func (proc *BaseProc) SET(req *proto.Request) (res *proto.Response, err error) {
 	res = proto.NewResponse(proto.RES_TYPE_STATE)
-	res.SetState("OK")
+	res.SetString("OK")
 	return
 }
 
 // PING : Empty processor ping
 func (proc *BaseProc) PING(req *proto.Request) (res *proto.Response, err error) {
 	res = proto.NewResponse(proto.RES_TYPE_STATE)
-	res.SetState("PONG")
+	res.SetString("PONG")
 	return
 }
 
@@ -153,7 +146,7 @@ func (proc *BaseProc) AUTH(req *proto.Request) (res *proto.Response, err error) 
 	} else {
 		if proc.passwd == req.Params[0] {
 			res = proto.NewResponse(proto.RES_TYPE_STATE)
-			res.SetState("OK")
+			res.SetString("OK")
 		} else {
 			res = proto.NewErrorRes("ERR invalid password")
 			err = errors.New("ERR invalid password")
@@ -167,7 +160,7 @@ func (proc *BaseProc) MULTI(req *proto.Request) (res *proto.Response, err error)
 	if !proc.isMulti {
 		proc.isMulti = true
 		res = proto.NewResponse(proto.RES_TYPE_STATE)
-		res.SetState("OK")
+		res.SetString("OK")
 	} else {
 		res = proto.NewErrorRes("MULTI calls can not be nested")
 	}
@@ -175,23 +168,23 @@ func (proc *BaseProc) MULTI(req *proto.Request) (res *proto.Response, err error)
 }
 
 // EXEC : Empty processor auth
-func (proc *BaseProc) EXEC(req *proto.Request) (res []*proto.Response, err error) {
+func (proc *BaseProc) EXEC(req *proto.Request) (res *proto.Response, err error) {
 	if proc.isMulti {
 		proc.isMulti = false
+		res = proto.NewResponse(proto.RES_TYPE_MULTI)
 		for _, request := range proc.reqQue {
 			cmd := request.Cmd
-
 			v := reflect.ValueOf(proc)
 			method := v.MethodByName(cmd)
 			result := method.Call([]reflect.Value{reflect.ValueOf(request)})
 			if !result[0].IsNil() {
-				res = append(res, result[0].Interface().(*proto.Response))
+				res.SetResponse(result[0].Interface().(*proto.Response))
 			} else {
-				res = append(res, proto.NewErrorRes("Process `"+cmd+"` error"))
+				res.SetResponse(proto.NewErrorRes("Process `" + cmd + "` error"))
 			}
 		}
 	} else {
-		res = append(res, proto.NewErrorRes("EXEC without MULTI"))
+		res = proto.NewErrorRes("EXEC without MULTI")
 	}
 	return
 }

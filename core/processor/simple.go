@@ -2,7 +2,6 @@ package processor
 
 import (
 	"gredissimulate/core/proto"
-	"strconv"
 )
 
 var set map[string]string
@@ -27,7 +26,7 @@ func (proc *SimpleProc) GET(req *proto.Request) (res *proto.Response, err error)
 			res.SetString(v)
 		}
 	} else {
-		res = proto.NewErrorRes("wrong number of arguments for 'set' command")
+		res = proto.NewErrorRes("wrong number of arguments for 'GET' command")
 	}
 	return
 }
@@ -39,9 +38,9 @@ func (proc *SimpleProc) SET(req *proto.Request) (res *proto.Response, err error)
 		v := req.Params[1]
 		set[k] = v
 		res = proto.NewResponse(proto.RES_TYPE_STATE)
-		res.SetState("OK")
+		res.SetString("OK")
 	} else {
-		res = proto.NewErrorRes("wrong number of arguments for 'set' command")
+		res = proto.NewErrorRes("wrong number of arguments for 'SET' command")
 	}
 	return
 }
@@ -64,7 +63,7 @@ func (proc *SimpleProc) HSET(req *proto.Request) (res *proto.Response, err error
 	}
 	hash[k] = data
 	res = proto.NewResponse(proto.RES_TYPE_INT)
-	res.SetInt(strconv.Itoa(updateCount))
+	res.SetInt(updateCount)
 	return
 }
 
@@ -95,13 +94,24 @@ func (proc *SimpleProc) HGETALL(req *proto.Request) (res *proto.Response, err er
 		res = proto.NewResponse(proto.RES_TYPE_MULTI)
 		if data, ok = hash[k]; ok {
 			for field, value := range data {
-				res.SetString(field)
-				res.SetString(value)
+				r1 := proto.NewResponse(proto.RES_TYPE_BULK)
+				r1.SetString(field)
+				r2 := proto.NewResponse(proto.RES_TYPE_BULK)
+				r2.SetString(value)
+				res.SetResponse(r1)
+				res.SetResponse(r2)
 			}
 		}
 	} else {
 		res = proto.NewErrorRes("wrong number of arguments for 'set' command")
 	}
+	return
+}
+
+// SELECT : SELECT command
+func (proc *SimpleProc) SELECT(req *proto.Request) (res *proto.Response, err error) {
+	res = proto.NewResponse(proto.RES_TYPE_STATE)
+	res.SetString("OK")
 	return
 }
 

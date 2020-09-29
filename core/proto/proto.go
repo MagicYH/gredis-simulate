@@ -51,64 +51,36 @@ type ResData struct {
 // Response : response to client
 type Response struct {
 	Type string
-	Data []ResData
+	Data string
+	Nest []*Response
 }
 
 // NewResponse : Create a new response
 func NewResponse(t string) *Response {
-	return &Response{Type: t, Data: []ResData{}}
+	return &Response{Type: t, Data: ""}
 }
 
 // NewErrorRes : Create a new error response
 func NewErrorRes(err string) *Response {
 	return &Response{
 		Type: RES_TYPE_ERROR,
-		Data: []ResData{{Type: RES_TYPE_ERROR, StrData: err}},
+		Data: err,
 	}
-}
-
-const RESPONSE_GROUP_ONE = 0
-const RESPONSE_GROUP_MULTI = 1
-
-// ResponseGroup : Response package
-type ResponseGroup struct {
-	Type      int
-	Responses []*Response
-}
-
-// NewResponseGroup : Create response package
-func NewResponseGroup() *ResponseGroup {
-	return &ResponseGroup{Type: RESPONSE_GROUP_ONE}
-}
-
-// SetType : Set response group type
-func (group *ResponseGroup) SetType(t int) {
-	group.Type = t
-}
-
-// AppendResponse : Append new response to response group
-func (group *ResponseGroup) AppendResponse(response *Response) {
-	group.Responses = append(group.Responses, response)
-}
-
-// SetState : Set state
-func (res *Response) SetState(content string) {
-	res.Data = append(res.Data, ResData{Type: RES_TYPE_STATE, StrData: content})
 }
 
 // SetString : Set string
 func (res *Response) SetString(content string) {
-	res.Data = append(res.Data, ResData{Type: RES_TYPE_BULK, StrData: content})
+	res.Data = content
 }
 
 // SetInt : Set int
-func (res *Response) SetInt(content string) {
-	res.Data = append(res.Data, ResData{Type: RES_TYPE_INT, StrData: content})
+func (res *Response) SetInt(value int) {
+	res.Data = strconv.Itoa(value)
 }
 
-// SetError : Set error
-func (res *Response) SetError(content string) {
-	res.Data = append(res.Data, ResData{Type: RES_TYPE_ERROR, StrData: content})
+// SetResponse :
+func (res *Response) SetResponse(content *Response) {
+	res.Nest = append(res.Nest, content)
 }
 
 // PARSE_CMD_COUNT : init, parse cmd count
@@ -158,7 +130,7 @@ func (parser *Parser) ParseCmd(reader SocketReader) (*Request, error) {
 
 		isOk, err := parser.DoParse(content)
 		if nil != err {
-			logger.LogError("Parse cmd error")
+			logger.LogError("Parse cmd error:", content)
 			return nil, err
 		}
 		if isOk {
@@ -221,45 +193,39 @@ func (parser *Parser) GetRequest() *Request {
 	}
 }
 
-// BuildMultiResBinary : BuildMultiResBinary build multi response
-func BuildMultiResBinary(responseGroup *ResponseGroup) []byte {
-	var content string
-	if RESPONSE_GROUP_MULTI == responseGroup.Type {
-		length := len(responseGroup.Responses)
-		content = "*" + strconv.Itoa(length) + MSG_END
-		for _, response := range responseGroup.Responses {
-			content = content + buildResBinary(response)
-		}
-	} else {
-		content = buildResBinary(responseGroup.Responses[0])
-	}
-	return []byte(content)
-}
+// // BuildMultiResBinary : BuildMultiResBinary build multi response
+// func BuildMultiResBinary(responseGroup *ResponseGroup) []byte {
+// 	var content string
+// 	if RESPONSE_GROUP_MULTI == responseGroup.Type {
+// 		length := len(responseGroup.Responses)
+// 		content = "*" + strconv.Itoa(length) + MSG_END
+// 		for _, response := range responseGroup.Responses {
+// 			content = content + buildResBinary(response)
+// 		}
+// 	} else {
+// 		content = buildResBinary(responseGroup.Responses[0])
+// 	}
+// 	return []byte(content)
+// }
 
-// buildResBinary : Convert response to binary result
-func buildResBinary(response *Response) string {
+// BuildResBinary : Convert response to binary result
+func BuildResBinary(response *Response) string {
 	var content string
-	length := len(response.Data)
-
 	if RES_TYPE_MULTI == response.Type {
-		content = "*" + strconv.Itoa(length) + MSG_END
-		for _, res := range response.Data {
-			if RES_TYPE_BULK == res.Type {
-				content = content + res.Type + strconv.Itoa(len(res.StrData)) + MSG_END + res.StrData + MSG_END
-			} else {
-				content = content + res.Type + res.StrData + MSG_END
-			}
+		content = "*" + strconv.Itoa(len(response.Nest)) + MSG_END
+		for _, res := range response.Nest {
+			content = content + BuildResBinary(res)
 		}
 	} else {
-		if 0 == length {
-			content = "$-1" + MSG_END
-		} else {
-			res := response.Data[0]
-			if RES_TYPE_BULK == res.Type {
-				content = res.Type + strconv.Itoa(len(res.StrData)) + MSG_END + res.StrData + MSG_END
+		if RES_TYPE_BULK == response.Type {
+			strLen := len(response.Data)
+			if 0 != strLen {
+				content = response.Type + strconv.Itoa(strLen) + MSG_END + response.Data + MSG_END
 			} else {
-				content = res.Type + res.StrData + MSG_END
+				content = response.Type + "-1" + MSG_END
 			}
+		} else {
+			content = response.Type + response.Data + MSG_END
 		}
 	}
 

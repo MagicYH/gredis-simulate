@@ -1,3 +1,5 @@
+github.com/MagicYH/rdb v0.0.0-20200929172128-c64e68c3d290 h1:Juxv4E1yGcaQHhXUx2DnHfUPtsAbr9qz3qvC3/zGIeU=
+github.com/MagicYH/rdb v0.0.0-20200929172128-c64e68c3d290/go.mod h1:f7FvXqMD0hF9PkwmBh6M/KXFMZX6coLuw060zpxC3h4=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v2 v2.3.0 h1:clyUAQHOM3G0M3f5vQj7LuJrETvjVot3Z5el9nffUtU=
 gopkg.in/yaml.v2 v2.3.0/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=

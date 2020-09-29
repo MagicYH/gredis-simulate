@@ -19,10 +19,19 @@ type Worker struct {
 	needAuth    bool
 	passwd      string
 	scanner     *bufio.Scanner
+	readOnly    bool
+	slaveModel  bool
+}
+
+// WorkerConf : worker config
+type WorkerConf struct {
+	Passwd      string
+	ReadOnly    bool
+	NewProcFunc processor.Create
 }
 
 // NewWorker : Create new worker instance
-func NewWorker(ctx context.Context, conn net.Conn, conf ServerConf, function processor.Create) (*Worker, error) {
+func NewWorker(ctx context.Context, conn net.Conn, conf WorkerConf) (*Worker, error) {
 	passwd := conf.Passwd
 	needAuth := false
 	if "" != conf.Passwd {
@@ -31,10 +40,11 @@ func NewWorker(ctx context.Context, conn net.Conn, conf ServerConf, function pro
 	worker := &Worker{
 		ctx:         ctx,
 		conn:        conn,
-		newProcFunc: function,
+		newProcFunc: conf.NewProcFunc,
 		needAuth:    needAuth,
 		passwd:      passwd,
 		scanner:     bufio.NewScanner(conn),
+		readOnly:    conf.ReadOnly,
 	}
 	return worker, nil
 }
@@ -75,19 +85,18 @@ func (worker *Worker) DoServe() {
 func (worker *Worker) ProcessMultiCmd(proc processor.Processor) error {
 	for {
 		parser := proto.NewParser()
-		responseGroup := proto.NewResponseGroup()
 		request, err := parser.ParseCmd(worker)
-
+		var response *proto.Response
 		if nil != err {
 			if "proto.NetError" == reflect.TypeOf(err).String() {
 				return err
 			}
-			responseGroup.AppendResponse(proto.NewErrorRes("Parse cmd fail"))
+
+			response = proto.NewErrorRes("Parse cmd fail")
 		} else {
 			if worker.NeedAuth() {
 				if "AUTH" == request.Cmd {
-					response, err := proc.AUTH(request)
-					responseGroup.AppendResponse(response)
+					response, err = proc.AUTH(request)
 
 					if nil == err {
 						worker.needAuth = false
@@ -95,19 +104,20 @@ func (worker *Worker) ProcessMultiCmd(proc processor.Processor) error {
 						worker.needAuth = true
 					}
 				} else {
-					responseGroup = &proto.ResponseGroup{}
-					responseGroup.AppendResponse(proto.NewErrorRes("NOAUTH Authentication required."))
+					response = proto.NewErrorRes("NOAUTH Authentication required.")
 				}
 			} else {
 				// Use processor
-				responseGroup, err = processor.ProcessReq(proc, request)
+				response, err = processor.ProcessReq(proc, request)
 				if nil != err {
 					logger.LogError(err)
 				}
 			}
 		}
 
-		worker.conn.Write(proto.BuildMultiResBinary(responseGroup))
+		if false == worker.readOnly {
+			worker.conn.Write([]byte(proto.BuildResBinary(response)))
+		}
 
 		if !proc.IsMulti() {
 			break

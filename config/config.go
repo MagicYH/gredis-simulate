@@ -13,9 +13,10 @@ import (
 
 // BaseConf information struct
 type BaseConf struct {
-	Port    int    `yaml:"port"`     // Main listen port
-	LogPath string `yaml:"log_path"` // log file path
-	Passwd  string `yaml:"requirepass"`
+	Port    int    `yaml:"port"`        // Main listen port
+	LogPath string `yaml:"log_path"`    // log file path
+	Passwd  string `yaml:"requirepass"` // password of redis
+	Slaveof string `yaml:"slaveof"`     // slave of other redis
 }
 
 var baseConf *BaseConf
@@ -58,4 +59,9 @@ func GetAppPath() string {
 // GetPasswd : Get password of server
 func GetPasswd() string {
 	return baseConf.Passwd
+}
+
+// GetSlave : Get slave of ip:port config
+func GetSlave() string {
+	return baseConf.Slaveof
 }

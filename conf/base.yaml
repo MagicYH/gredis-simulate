@@ -1,3 +1,4 @@
 port: 9736
 log_path: 
 requirepass: 
+slaveof: 192.168.10.3:6379
