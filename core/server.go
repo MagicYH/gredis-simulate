@@ -189,6 +189,8 @@ func (server *Server) continueSync(conn net.Conn) {
 		return
 	}
 	worker.DoServe()
+
+	server.offset = server.offset + worker.readBytes
 }
 
 func (server *Server) getSyncBaseInfo(reader *bufio.Reader) (isFull bool, err error) {

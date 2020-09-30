@@ -2,6 +2,7 @@ package processor
 
 import (
 	"gredissimulate/core/proto"
+	"strconv"
 )
 
 var set map[string]string
@@ -112,6 +113,30 @@ func (proc *SimpleProc) HGETALL(req *proto.Request) (res *proto.Response, err er
 func (proc *SimpleProc) SELECT(req *proto.Request) (res *proto.Response, err error) {
 	res = proto.NewResponse(proto.RES_TYPE_STATE)
 	res.SetString("OK")
+	return
+}
+
+// SCAN : scan command
+func (proc *SimpleProc) SCAN(req *proto.Request) (res *proto.Response, err error) {
+	res = proto.NewResponse(proto.RES_TYPE_MULTI)
+	length := len(set) + len(hash)
+	r1 := proto.NewResponse(proto.RES_TYPE_BULK)
+	r1.SetString(strconv.Itoa(length))
+	r2 := proto.NewResponse(proto.RES_TYPE_MULTI)
+	for k := range set {
+		r := proto.NewResponse(proto.RES_TYPE_BULK)
+		r.SetString(k)
+		r2.SetResponse(r)
+	}
+
+	for k := range hash {
+		r := proto.NewResponse(proto.RES_TYPE_BULK)
+		r.SetString(k)
+		r2.SetResponse(r)
+	}
+
+	res.SetResponse(r1)
+	res.SetResponse(r2)
 	return
 }
 

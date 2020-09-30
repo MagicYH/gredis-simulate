@@ -21,6 +21,7 @@ type Worker struct {
 	scanner     *bufio.Scanner
 	readOnly    bool
 	slaveModel  bool
+	readBytes   int
 }
 
 // WorkerConf : worker config
@@ -45,6 +46,7 @@ func NewWorker(ctx context.Context, conn net.Conn, conf WorkerConf) (*Worker, er
 		passwd:      passwd,
 		scanner:     bufio.NewScanner(conn),
 		readOnly:    conf.ReadOnly,
+		readBytes:   0,
 	}
 	return worker, nil
 }
@@ -131,6 +133,7 @@ func (worker *Worker) ProcessMultiCmd(proc processor.Processor) error {
 func (worker *Worker) ReadLine() (content string, err error) {
 	if worker.scanner.Scan() {
 		content = worker.scanner.Text()
+		worker.readBytes = worker.readBytes + len([]byte(content))
 	} else {
 		err = worker.scanner.Err()
 		if nil == err {
@@ -143,4 +146,9 @@ func (worker *Worker) ReadLine() (content string, err error) {
 // NeedAuth : is worker need auth
 func (worker *Worker) NeedAuth() bool {
 	return worker.needAuth && "" != worker.passwd
+}
+
+// GetReadLen : get read byte length
+func (worker *Worker) GetReadLen() int {
+	return worker.readBytes
 }
